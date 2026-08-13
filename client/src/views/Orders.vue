@@ -74,6 +74,57 @@
           </table>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">{{ t('orders.submittedOrders.title') }} ({{ restockingOrders.length }})</h3>
+        </div>
+        <div v-if="restockingOrders.length === 0" class="empty-state">
+          {{ t('orders.submittedOrders.noOrders') }}
+        </div>
+        <div v-else class="table-container">
+          <table class="restocking-orders-table">
+            <thead>
+              <tr>
+                <th class="col-order-number">{{ t('orders.submittedOrders.orderId') }}</th>
+                <th class="col-items">{{ t('orders.submittedOrders.items') }}</th>
+                <th class="col-value">{{ t('orders.submittedOrders.totalCost') }}</th>
+                <th class="col-value">{{ t('orders.submittedOrders.budget') }}</th>
+                <th class="col-status">{{ t('orders.submittedOrders.status') }}</th>
+                <th class="col-date">{{ t('orders.submittedOrders.createdDate') }}</th>
+                <th class="col-date">{{ t('orders.submittedOrders.expectedDelivery') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="restockingOrder in restockingOrders" :key="restockingOrder.id">
+                <td class="col-order-number"><strong>{{ restockingOrder.id }}</strong></td>
+                <td class="col-items">
+                  <details class="items-details">
+                    <summary class="items-summary">
+                      {{ t('orders.submittedOrders.itemsCount', { count: restockingOrder.items.length }) }}
+                    </summary>
+                    <div class="items-dropdown">
+                      <div v-for="item in restockingOrder.items" :key="item.sku" class="item-entry">
+                        <span class="item-name">{{ translateProductName(item.name) }} ({{ item.sku }})</span>
+                        <span class="item-meta">{{ t('orders.submittedOrders.quantity') }}: {{ item.quantity }} @ {{ currencySymbol }}{{ item.unit_cost }} = {{ currencySymbol }}{{ item.line_total.toLocaleString() }}</span>
+                      </div>
+                    </div>
+                  </details>
+                </td>
+                <td class="col-value"><strong>{{ currencySymbol }}{{ restockingOrder.total_cost.toLocaleString() }}</strong></td>
+                <td class="col-value">{{ currencySymbol }}{{ restockingOrder.budget.toLocaleString() }}</td>
+                <td class="col-status">
+                  <span :class="['badge', getRestockingStatusClass(restockingOrder.status)]">
+                    {{ restockingOrder.status }}
+                  </span>
+                </td>
+                <td class="col-date">{{ formatDate(restockingOrder.created_date) }}</td>
+                <td class="col-date">{{ formatDate(restockingOrder.expected_delivery) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -95,6 +146,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+    const restockingOrders = ref([])
 
     // Use shared filters
     const {
@@ -129,6 +181,22 @@ export default {
       loadOrders()
     })
 
+    // Restocking orders are independent of the shared filters (budget-planning workflow)
+    const loadRestockingOrders = async () => {
+      try {
+        restockingOrders.value = await api.getRestockingOrders()
+      } catch (err) {
+        console.error('Failed to load restocking orders:', err)
+      }
+    }
+
+    const getRestockingStatusClass = (status) => {
+      const statusMap = {
+        'Submitted': 'info'
+      }
+      return statusMap[status] || 'info'
+    }
+
     const getOrdersByStatus = (status) => {
       return orders.value.filter(order => order.status === status)
     }
@@ -153,15 +221,20 @@ export default {
       })
     }
 
-    onMounted(loadOrders)
+    onMounted(() => {
+      loadOrders()
+      loadRestockingOrders()
+    })
 
     return {
       t,
       loading,
       error,
       orders,
+      restockingOrders,
       getOrdersByStatus,
       getOrderStatusClass,
+      getRestockingStatusClass,
       formatDate,
       currencySymbol,
       translateProductName,
@@ -176,6 +249,18 @@ export default {
 .orders-table {
   table-layout: fixed;
   width: 100%;
+}
+
+.restocking-orders-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-8);
+  color: #64748b;
+  font-size: 0.938rem;
 }
 
 /* Column widths */
