@@ -324,13 +324,13 @@ export default {
 .card {
   background: white;
   border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
 }
 
 .card-title {

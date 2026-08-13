@@ -6,6 +6,8 @@ export default {
     orders: 'Orders',
     finance: 'Finance',
     demandForecast: 'Demand Forecast',
+    restocking: 'Restocking',
+    reports: 'Reports',
     companyName: 'Catalyst Components',
     subtitle: 'Inventory Management System'
   },
@@ -126,6 +128,19 @@ export default {
       status: 'Status',
       expectedDelivery: 'Expected Delivery',
       actualDelivery: 'Actual Delivery'
+    },
+    submittedOrders: {
+      title: 'Submitted Restocking Orders',
+      orderId: 'Order ID',
+      items: 'Items',
+      totalCost: 'Total Cost',
+      budget: 'Budget',
+      status: 'Status',
+      createdDate: 'Created Date',
+      expectedDelivery: 'Expected Delivery',
+      itemsCount: '{count} items',
+      quantity: 'Qty',
+      noOrders: 'No restocking orders submitted yet'
     }
   },
 
@@ -185,6 +200,33 @@ export default {
       change: 'Change',
       trend: 'Trend',
       period: 'Period'
+    }
+  },
+
+  // Restocking
+  restocking: {
+    title: 'Restocking',
+    description: 'Plan budget-driven restocking orders based on demand forecasts and reorder urgency',
+    budgetLabel: 'Restocking Budget',
+    budgetSelected: 'Budget Selected',
+    budgetUsed: 'Budget Used',
+    budgetRemaining: 'Budget Remaining',
+    itemsRecommended: 'Items Recommended',
+    recommendations: 'Recommended Restocking Items',
+    placeOrder: 'Place Order',
+    placingOrder: 'Placing Order...',
+    belowReorderPoint: 'Below Reorder Point',
+    orderSuccess: 'Order placed successfully. Expected delivery: {date}',
+    orderError: 'Failed to place restocking order',
+    noRecommendations: 'Increase the budget to generate restocking recommendations',
+    table: {
+      sku: 'SKU',
+      itemName: 'Item Name',
+      recommendedQty: 'Recommended Qty',
+      unitCost: 'Unit Cost',
+      lineTotal: 'Line Total',
+      leadTime: 'Lead Time (Days)',
+      urgency: 'Urgency'
     }
   },
 
