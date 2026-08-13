@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>System Architecture — Factory Inventory Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F6F8FB;
+    --bg-grid-minor: rgba(22,50,79,0.045);
+    --bg-grid-major: rgba(22,50,79,0.09);
+    --surface: #FFFFFF;
+    --surface-alt: #EAF1F8;
+    --ink: #142C46;
+    --ink-2: #4C6785;
+    --ink-3: #7891AC;
+    --line: #CBDAE7;
+    --line-strong: #9AB4CE;
+    --accent: #B9691C;
+    --accent-ink: #7A4512;
+    --accent-soft: #F3DFC3;
+    --radius: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0C1D34;
+      --bg-grid-minor: rgba(255,255,255,0.05);
+      --bg-grid-major: rgba(255,255,255,0.10);
+      --surface: #132B4C;
+      --surface-alt: #0F2440;
+      --ink: #E9F1FB;
+      --ink-2: #A7C1DB;
+      --ink-3: #7C9BBC;
+      --line: rgba(255,255,255,0.16);
+      --line-strong: rgba(255,255,255,0.30);
+      --accent: #E4A059;
+      --accent-ink: #FCE4C4;
+      --accent-soft: rgba(228,160,89,0.16);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0C1D34;
+    --bg-grid-minor: rgba(255,255,255,0.05);
+    --bg-grid-major: rgba(255,255,255,0.10);
+    --surface: #132B4C;
+    --surface-alt: #0F2440;
+    --ink: #E9F1FB;
+    --ink-2: #A7C1DB;
+    --ink-3: #7C9BBC;
+    --line: rgba(255,255,255,0.16);
+    --line-strong: rgba(255,255,255,0.30);
+    --accent: #E4A059;
+    --accent-ink: #FCE4C4;
+    --accent-soft: rgba(228,160,89,0.16);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      repeating-linear-gradient(to right, var(--bg-grid-minor) 0, var(--bg-grid-minor) 1px, transparent 1px, transparent 20px),
+      repeating-linear-gradient(to bottom, var(--bg-grid-minor) 0, var(--bg-grid-minor) 1px, transparent 1px, transparent 20px),
+      repeating-linear-gradient(to right, var(--bg-grid-major) 0, var(--bg-grid-major) 1px, transparent 1px, transparent 100px),
+      repeating-linear-gradient(to bottom, var(--bg-grid-major) 0, var(--bg-grid-major) 1px, transparent 1px, transparent 100px),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent-ink); }
+
+  .sheet {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 28px 90px;
+  }
+
+  code, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  h1, h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: 44px;
+    margin: 10px 0 14px;
+    line-height: 1.02;
+  }
+
+  .dek {
+    max-width: 62ch;
+    color: var(--ink-2);
+    font-size: 16.5px;
+    margin: 0 0 28px;
+  }
+
+  /* ---- title block, drafting-stamp style ---- */
+  .titleblock {
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    border-radius: var(--radius);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 0 0 56px;
+    overflow: hidden;
+  }
+  .titleblock .field {
+    padding: 12px 16px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .titleblock .field:nth-child(4n) { border-right: none; }
+  .titleblock .field:nth-last-child(-n+4) { border-bottom: none; }
+  .titleblock .field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .titleblock .field-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  section { margin: 0 0 58px; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--line-strong);
+    padding-bottom: 10px;
+    margin-bottom: 22px;
+  }
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 2px 7px;
+    border-radius: var(--radius);
+    font-weight: 600;
+  }
+  .section-head h2 { font-size: 26px; margin: 0; }
+
+  p { margin: 0 0 14px; }
+  section > p:last-child { margin-bottom: 0; }
+
+  .prose { max-width: 68ch; color: var(--ink-2); }
+  .prose strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- diagrams ---- */
+  figure { margin: 22px 0; }
+  .diagram-wrap {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 6px;
+  }
+  svg.diagram { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink-3); }
+  svg.diagram text { fill: var(--ink); font-family: 'IBM Plex Mono', monospace; }
+  svg.diagram .sub { fill: var(--ink-2); }
+  svg.diagram .micro { fill: var(--ink-3); }
+  svg.diagram .box { fill: var(--surface); stroke: currentColor; stroke-width: 1.4; }
+  svg.diagram .boundary { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 6,5; }
+  svg.diagram .accent { color: var(--accent); }
+  svg.diagram .accent-fill { fill: var(--accent-ink); }
+  svg.diagram .server-tick { stroke: var(--accent); stroke-width: 3; }
+  svg.diagram .client-tick { stroke: var(--ink-3); stroke-width: 3; }
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin-top: 10px;
+    max-width: 68ch;
+  }
+  .legend {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--ink-2);
+    margin-top: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .legend span.swatch { display: inline-block; width: 18px; border-top: 2px solid var(--ink-3); vertical-align: middle; margin-right: 6px; }
+  .legend span.swatch.dashed { border-top-style: dashed; }
+  .legend span.swatch.accent { border-top-color: var(--accent); }
+
+  /* ---- stack cards ---- */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .stack-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+  }
+  .stack-card h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+    font-size: 18px;
+    letter-spacing: 0.03em;
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .stack-card dl { margin: 0; }
+  .stack-card .row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 13.5px; border-bottom: 1px dotted var(--line); }
+  .stack-card .row:last-child { border-bottom: none; }
+  .stack-card .row dt { color: var(--ink-2); }
+  .stack-card .row dd { margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ---- tables ---- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; background: var(--surface); }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.path, td code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--accent-ink); white-space: nowrap; }
+  .group-row td {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* ---- file tree ---- */
+  .tree-wrap { overflow-x: auto; }
+  pre.tree {
+    margin: 0;
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    white-space: pre;
+  }
+  pre.tree .name { color: var(--ink); }
+  pre.tree .note { color: var(--ink-3); }
+
+  /* ---- callout ---- */
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    font-size: 13.8px;
+    color: var(--ink);
+  }
+  .callout strong { color: var(--accent-ink); }
+
+  footer {
+    margin-top: 70px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 720px) {
+    h1 { font-size: 32px; }
+    .titleblock { grid-template-columns: repeat(2, 1fr); }
+    .titleblock .field:nth-child(4n) { border-right: 1px solid var(--line); }
+    .titleblock .field:nth-child(2n) { border-right: none; }
+    .stack-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="eyebrow">Technical Overview — Sheet 01 of 01</div>
+  <h1>System Architecture</h1>
+  <p class="dek">How Factory Inventory Management is put together: a Vue 3 single-page app talking over HTTP to a FastAPI service that filters a dataset held entirely in memory. No database, no build step on the backend, no persistence between restarts.</p>
+
+  <div class="titleblock">
+    <div class="field"><div class="field-label">Frontend</div><div class="field-value">Vue 3 · Vite — :3000</div></div>
+    <div class="field"><div class="field-label">Backend</div><div class="field-value">FastAPI · Uvicorn — :8001</div></div>
+    <div class="field"><div class="field-label">Data store</div><div class="field-value">In-memory (JSON at boot)</div></div>
+    <div class="field"><div class="field-label">Auth</div><div class="field-value">None — client-side mock only</div></div>
+    <div class="field"><div class="field-label">API surface</div><div class="field-value">14 routes, all GET</div></div>
+    <div class="field"><div class="field-label">Package managers</div><div class="field-value">npm · uv</div></div>
+    <div class="field"><div class="field-label">Test runner</div><div class="field-value">pytest + TestClient</div></div>
+    <div class="field"><div class="field-label">Prepared</div><div class="field-value">2026-08-13</div></div>
+  </div>
+
+  <section id="architecture">
+    <div class="section-head"><span class="section-num">01</span><h2>System Architecture</h2></div>
+    <p class="prose">The two halves run as separate processes on separate ports and only ever talk over HTTP. Everything on the right — the FastAPI app and the dataset it serves — lives inside <strong>one Python process</strong>: <code>mock_data.py</code> reads the seven JSON files in <code>server/data/</code> into plain Python lists a single time, at import, and every request afterward filters those lists directly. There is no query layer, no ORM, and no disk access per request.</p>
+
+    <figure>
+      <div class="diagram-wrap">
+        <svg class="diagram" viewBox="0 0 860 250" role="img" aria-label="The browser runs the Vue app on port 3000 and sends HTTP requests to a FastAPI app on port 8001. The FastAPI app and the mock_data module that loads the JSON files live inside one Python process, so reads between them are direct function calls with no network hop.">
+          <defs>
+            <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- browser -->
+          <rect class="box" x="20" y="75" width="190" height="100" rx="3"/>
+          <text x="115" y="102" font-size="13.5" font-weight="600" text-anchor="middle">BROWSER</text>
+          <text class="sub" x="115" y="124" font-size="11.5" text-anchor="middle">Vue 3 SPA</text>
+          <text class="micro" x="115" y="142" font-size="10" text-anchor="middle">localhost:3000 · Vite dev server</text>
+          <text class="micro" x="115" y="158" font-size="10" text-anchor="middle">axios client (api.js)</text>
+
+          <!-- process boundary -->
+          <rect class="boundary" x="270" y="18" width="570" height="214" rx="6"/>
+          <text class="micro accent-fill" x="286" y="34" font-size="10">PYTHON PROCESS — uv run python main.py</text>
+
+          <!-- fastapi -->
+          <rect class="box" x="300" y="75" width="190" height="100" rx="3"/>
+          <text x="395" y="102" font-size="13.5" font-weight="600" text-anchor="middle">FASTAPI APP</text>
+          <text class="sub" x="395" y="124" font-size="11.5" text-anchor="middle">main.py route handlers</text>
+          <text class="micro" x="395" y="142" font-size="10" text-anchor="middle">localhost:8001 · Uvicorn</text>
+          <text class="micro" x="395" y="158" font-size="10" text-anchor="middle">CORS: allow_origins=[*]</text>
+
+          <!-- store -->
+          <rect class="box" x="610" y="75" width="210" height="100" rx="3"/>
+          <text x="715" y="102" font-size="13.5" font-weight="600" text-anchor="middle">MOCK_DATA.PY</text>
+          <text class="sub" x="715" y="124" font-size="11.5" text-anchor="middle">7 JSON files → Python lists</text>
+          <text class="micro" x="715" y="142" font-size="10" text-anchor="middle">server/data/*.json</text>
+          <text class="micro" x="715" y="158" font-size="10" text-anchor="middle">loaded once, at import</text>
+
+          <!-- browser <-> fastapi, request -->
+          <line x1="212" y1="98" x2="298" y2="98" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+          <text class="micro" x="255" y="88" font-size="9.5" text-anchor="middle">GET /api/* ?warehouse&amp;category&amp;status&amp;month</text>
+
+          <!-- fastapi -> browser, response -->
+          <line x1="298" y1="150" x2="212" y2="150" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+          <text class="micro" x="255" y="167" font-size="9.5" text-anchor="middle">200 · JSON, Pydantic-validated</text>
+
+          <!-- fastapi <-> store, in-process -->
+          <line x1="492" y1="112" x2="608" y2="112" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow1)"/>
+          <text class="micro" x="550" y="103" font-size="9.5" text-anchor="middle">filter in place</text>
+          <text class="micro" x="550" y="130" font-size="9.5" text-anchor="middle">(list comprehension,</text>
+          <text class="micro" x="550" y="142" font-size="9.5" text-anchor="middle">no network, no disk I/O)</text>
+        </svg>
+      </div>
+      <figcaption>Fig. 1 — Only one hop in this system ever crosses a network boundary: browser to FastAPI. The dashed boundary marks a single OS process; reads between FastAPI and the loaded dataset are ordinary function calls.</figcaption>
+    </figure>
+  </section>
+
+  <section id="dataflow">
+    <div class="section-head"><span class="section-num">02</span><h2>Filter &amp; Render Pipeline</h2></div>
+    <p class="prose">Every view is driven by up to four filters — <strong>time period, warehouse, category, order status</strong> — surfaced once in <code>FilterBar.vue</code> and shared app-wide through the <code>useFilters</code> composable. Changing any of them re-runs the same six-step loop, whether the view is the dashboard, inventory table, or spending report.</p>
+
+    <figure>
+      <div class="diagram-wrap">
+        <svg class="diagram" viewBox="0 0 860 190" role="img" aria-label="Six-step pipeline: FilterBar.vue captures a filter change, useFilters.js updates reactive state, api.js sends an HTTP GET with query parameters to main.py, which applies apply_filters and filter_by_month, the Pydantic response model validates the shape, and Vue's computed properties re-render the view.">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- tick marks: client vs server -->
+          <line class="client-tick" x1="10" y1="66" x2="126" y2="66"/>
+          <line class="client-tick" x1="146" y1="66" x2="262" y2="66"/>
+          <line class="client-tick" x1="282" y1="66" x2="398" y2="66"/>
+          <line class="server-tick" x1="418" y1="66" x2="534" y2="66"/>
+          <line class="server-tick" x1="554" y1="66" x2="670" y2="66"/>
+          <line class="client-tick" x1="690" y1="66" x2="806" y2="66"/>
+
+          <!-- boxes -->
+          <g font-size="11.5">
+            <rect class="box" x="10" y="70" width="116" height="62" rx="3"/>
+            <text x="68" y="94" text-anchor="middle" font-weight="600">FilterBar.vue</text>
+            <text class="sub" x="68" y="112" font-size="9.5" text-anchor="middle">user picks a filter</text>
+
+            <rect class="box" x="146" y="70" width="116" height="62" rx="3"/>
+            <text x="204" y="94" text-anchor="middle" font-weight="600">useFilters.js</text>
+            <text class="sub" x="204" y="112" font-size="9.5" text-anchor="middle">reactive state updates</text>
+
+            <rect class="box" x="282" y="70" width="116" height="62" rx="3"/>
+            <text x="340" y="94" text-anchor="middle" font-weight="600">api.js</text>
+            <text class="sub" x="340" y="112" font-size="9.5" text-anchor="middle">builds query string</text>
+
+            <rect class="box" x="418" y="70" width="116" height="62" rx="3"/>
+            <text x="476" y="94" text-anchor="middle" font-weight="600">main.py</text>
+            <text class="sub" x="476" y="112" font-size="9.5" text-anchor="middle">apply_filters()</text>
+
+            <rect class="box" x="554" y="70" width="116" height="62" rx="3"/>
+            <text x="612" y="94" text-anchor="middle" font-weight="600">Pydantic model</text>
+            <text class="sub" x="612" y="112" font-size="9.5" text-anchor="middle">validates response</text>
+
+            <rect class="box" x="690" y="70" width="116" height="62" rx="3"/>
+            <text x="748" y="94" text-anchor="middle" font-weight="600">computed()</text>
+            <text class="sub" x="748" y="112" font-size="9.5" text-anchor="middle">view re-renders</text>
+          </g>
+
+          <!-- arrows -->
+          <line x1="128" y1="101" x2="144" y2="101" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow2)"/>
+          <line x1="264" y1="101" x2="280" y2="101" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow2)"/>
+          <line x1="400" y1="101" x2="416" y2="101" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow2)"/>
+          <line x1="536" y1="101" x2="552" y2="101" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow2)"/>
+          <line x1="672" y1="101" x2="688" y2="101" stroke="currentColor" stroke-width="1.3" marker-end="url(#arrow2)"/>
+
+          <text class="accent-fill" x="408" y="55" font-size="9.5" text-anchor="middle">HTTP →</text>
+          <text class="accent-fill" x="680" y="55" font-size="9.5" text-anchor="middle">← HTTP</text>
+
+          <text class="micro" x="68" y="152" font-size="9.5" text-anchor="middle">client (Vue)</text>
+          <text class="micro accent-fill" x="476" y="152" font-size="9.5" text-anchor="middle">server (Python)</text>
+        </svg>
+      </div>
+      <figcaption>Fig. 2 — The same loop runs for every filter change. Only steps 4 and 5 execute on the server; the round trip crosses HTTP twice, once out with the query and once back with the filtered JSON.</figcaption>
+    </figure>
+
+    <div class="legend">
+      <div><span class="swatch"></span>client-side step</div>
+      <div><span class="swatch accent"></span>server-side step</div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="section-head"><span class="section-num">03</span><h2>Tech Stack</h2></div>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <h3>Frontend</h3>
+        <dl>
+          <div class="row"><dt>Vue</dt><dd>^3.4.21</dd></div>
+          <div class="row"><dt>Vue Router</dt><dd>^4.3.0</dd></div>
+          <div class="row"><dt>Axios</dt><dd>^1.6.7</dd></div>
+          <div class="row"><dt>Vite</dt><dd>^5.2.0</dd></div>
+          <div class="row"><dt>@vitejs/plugin-vue</dt><dd>^5.0.4</dd></div>
+        </dl>
+      </div>
+      <div class="stack-card">
+        <h3>Backend</h3>
+        <dl>
+          <div class="row"><dt>Python</dt><dd>&gt;=3.11</dd></div>
+          <div class="row"><dt>FastAPI</dt><dd>&gt;=0.110</dd></div>
+          <div class="row"><dt>Uvicorn</dt><dd>&gt;=0.24</dd></div>
+          <div class="row"><dt>Pydantic</dt><dd>&gt;=2.5</dd></div>
+          <div class="row"><dt>Package mgr</dt><dd>uv</dd></div>
+        </dl>
+      </div>
+      <div class="stack-card">
+        <h3>Data &amp; Tests</h3>
+        <dl>
+          <div class="row"><dt>Store</dt><dd>7 JSON files</dd></div>
+          <div class="row"><dt>Persistence</dt><dd>none</dd></div>
+          <div class="row"><dt>pytest</dt><dd>&gt;=8.0</dd></div>
+          <div class="row"><dt>httpx</dt><dd>&gt;=0.27</dd></div>
+          <div class="row"><dt>pytest-cov</dt><dd>&gt;=4.1</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="api">
+    <div class="section-head"><span class="section-num">04</span><h2>API Surface</h2></div>
+    <p class="prose">Fourteen routes, every one a <code>GET</code>. There is nowhere in this API that writes data — the UI's "actions" are all client-side (mocked login, mocked task list); the backend's only job is to slice the in-memory dataset and hand back JSON.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Route</th><th>Query params</th><th>Returns</th></tr></thead>
+        <tbody>
+          <tr class="group-row"><td colspan="3">Inventory</td></tr>
+          <tr><td class="path">/api/inventory</td><td>warehouse, category</td><td>list of items</td></tr>
+          <tr><td class="path">/api/inventory/{id}</td><td>—</td><td>single item · 404 if missing</td></tr>
+          <tr class="group-row"><td colspan="3">Orders</td></tr>
+          <tr><td class="path">/api/orders</td><td>warehouse, category, status, month</td><td>list of orders</td></tr>
+          <tr><td class="path">/api/orders/{id}</td><td>—</td><td>single order · 404 if missing</td></tr>
+          <tr class="group-row"><td colspan="3">Demand &amp; Backlog</td></tr>
+          <tr><td class="path">/api/demand</td><td>none</td><td>demand forecasts</td></tr>
+          <tr><td class="path">/api/backlog</td><td>none</td><td>backlog items</td></tr>
+          <tr class="group-row"><td colspan="3">Dashboard</td></tr>
+          <tr><td class="path">/api/dashboard/summary</td><td>warehouse, category, status, month</td><td>aggregated KPIs</td></tr>
+          <tr class="group-row"><td colspan="3">Spending</td></tr>
+          <tr><td class="path">/api/spending/summary</td><td>none</td><td>totals</td></tr>
+          <tr><td class="path">/api/spending/monthly</td><td>none</td><td>monthly series</td></tr>
+          <tr><td class="path">/api/spending/categories</td><td>none</td><td>by-category series</td></tr>
+          <tr><td class="path">/api/spending/transactions</td><td>none</td><td>recent transactions</td></tr>
+          <tr class="group-row"><td colspan="3">Reports</td></tr>
+          <tr><td class="path">/api/reports/quarterly</td><td>none</td><td>quarterly rollups</td></tr>
+          <tr><td class="path">/api/reports/monthly-trends</td><td>none</td><td>monthly trend series</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="structure">
+    <div class="section-head"><span class="section-num">05</span><h2>Project Structure</h2></div>
+    <div class="tree-wrap">
+      <pre class="tree"><span class="name">client/</span>
+├── <span class="name">src/</span>
+│   ├── <span class="name">views/</span>          <span class="note">7 route-level pages</span>
+│   │   Dashboard · Inventory · Orders · Demand · Backlog · Spending · Reports
+│   ├── <span class="name">components/</span>     <span class="note">FilterBar, ProfileMenu, TasksModal, 5 detail modals</span>
+│   ├── <span class="name">composables/</span>    useAuth.js · useFilters.js · useI18n.js
+│   ├── <span class="name">utils/</span>          currency.js
+│   ├── <span class="name">api.js</span>          <span class="note">one function per endpoint, single axios client</span>
+│   └── <span class="name">App.vue</span>         <span class="note">shell, nav, global styles</span>
+<span class="name">server/</span>
+├── <span class="name">main.py</span>             <span class="note">FastAPI app, all 14 route handlers, filter helpers</span>
+├── <span class="name">mock_data.py</span>        <span class="note">loads data/*.json into module-level lists at import</span>
+├── <span class="name">generate_data.py</span>     <span class="note">script that produced the sample dataset</span>
+└── <span class="name">data/</span>               inventory · orders · demand_forecasts · backlog_items
+                       spending · transactions · purchase_orders  <span class="note">(.json)</span>
+<span class="name">tests/</span>
+└── <span class="name">backend/</span>            <span class="note">pytest + FastAPI TestClient</span></pre>
+    </div>
+  </section>
+
+  <section id="notes">
+    <div class="callout">
+      <strong>Demo, not production.</strong> There's no database — every restart of <code>uv run python main.py</code> reloads the seven JSON files fresh, so nothing written during a session persists. <code>useAuth.js</code> hardcodes <code>isAuthenticated = true</code> and logout just fires an alert; no request on the backend checks a token. CORS is wide open (<code>allow_origins=["*"]</code>), which is fine for a local demo pointed at a public repo but would need locking down before this talked to anything real.
+    </div>
+  </section>
+
+  <footer>
+    FACTORY INVENTORY MANAGEMENT · ARCHITECTURE OVERVIEW · GENERATED FROM SOURCE 2026-08-13
+  </footer>
+
+</div>
+</body>
+</html>
