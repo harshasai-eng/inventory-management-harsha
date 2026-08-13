@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
-from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
+from datetime import datetime, timedelta
+from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders, restocking_orders
 
 app = FastAPI(title="Factory Inventory Management System")
 
@@ -67,6 +68,7 @@ class InventoryItem(BaseModel):
     unit_cost: float
     location: str
     last_updated: str
+    lead_time_days: int
 
 class Order(BaseModel):
     id: str
@@ -119,6 +121,34 @@ class CreatePurchaseOrderRequest(BaseModel):
     unit_cost: float
     expected_delivery_date: str
     notes: Optional[str] = None
+
+class RestockingOrderItem(BaseModel):
+    sku: str
+    name: str
+    quantity: int
+    unit_cost: float
+    lead_time_days: int
+    line_total: float
+
+class CreateRestockingOrderItem(BaseModel):
+    sku: str
+    name: str
+    quantity: int
+    unit_cost: float
+    lead_time_days: int
+
+class CreateRestockingOrderRequest(BaseModel):
+    budget: float
+    items: List[CreateRestockingOrderItem]
+
+class RestockingOrder(BaseModel):
+    id: str
+    items: List[RestockingOrderItem]
+    total_cost: float
+    budget: float
+    status: str
+    created_date: str
+    expected_delivery: str
 
 # API endpoints
 @app.get("/")
@@ -178,6 +208,53 @@ def get_backlog():
         item_dict["has_purchase_order"] = has_po
         result.append(item_dict)
     return result
+
+@app.get("/api/restocking-orders", response_model=List[RestockingOrder])
+def get_restocking_orders():
+    """Get all submitted restocking orders"""
+    return restocking_orders
+
+@app.post("/api/restocking-orders", response_model=RestockingOrder, status_code=201)
+def create_restocking_order(request: CreateRestockingOrderRequest):
+    """Submit a new restocking order built from budget-driven recommendations"""
+    if not request.items:
+        raise HTTPException(status_code=400, detail="Restocking order must include at least one item")
+    if request.budget <= 0:
+        raise HTTPException(status_code=400, detail="Budget must be greater than zero")
+
+    order_items = []
+    total_cost = 0.0
+    max_lead_time = 0
+    for item in request.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Invalid quantity for {item.sku}")
+        line_total = round(item.quantity * item.unit_cost, 2)
+        total_cost += line_total
+        max_lead_time = max(max_lead_time, item.lead_time_days)
+        order_items.append(RestockingOrderItem(
+            sku=item.sku,
+            name=item.name,
+            quantity=item.quantity,
+            unit_cost=item.unit_cost,
+            lead_time_days=item.lead_time_days,
+            line_total=line_total
+        ))
+
+    if round(total_cost, 2) > round(request.budget, 2):
+        raise HTTPException(status_code=400, detail="Order total exceeds submitted budget")
+
+    created_date = datetime.now()
+    new_order = RestockingOrder(
+        id=str(len(restocking_orders) + 1),
+        items=order_items,
+        total_cost=round(total_cost, 2),
+        budget=request.budget,
+        status="Submitted",
+        created_date=created_date.isoformat(),
+        expected_delivery=(created_date + timedelta(days=max_lead_time)).isoformat()
+    )
+    restocking_orders.append(new_order.model_dump())
+    return new_order
 
 @app.get("/api/dashboard/summary")
 def get_dashboard_summary(
